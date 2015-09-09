@@ -418,6 +418,11 @@
               <FileType>2</FileType>
               <FilePath>.\startup_stm32f030.s</FilePath>
             </File>
+            <File>
+              <FileName>n1202.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\n1202.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
