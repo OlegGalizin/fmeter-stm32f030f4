@@ -2,12 +2,23 @@
 #define _N1202_H_
 #include "hw.h"
 
-static void LCD_DELAY(void) { int i=16; while(i) {__NOP(); i--;}; };
+static void LCD_DELAY(void) 
+{ 
+	int i=MAIN_F/6000000/3+1; 
+  while(i) 
+  {
+    __NOP();
+    i--;
+	}; 
+}
 static void LCD_BIG_DELAY(void)
 {
-  __IO uint32_t Counter;
-  for ( Counter = 0; Counter <60000; Counter++)
-    ; /* Blank */
+	int i=MAIN_F/100/3+1; 
+  while(i) 
+  {
+    __NOP();
+    i--;
+	}; 
 }
 
 #if defined(LCD_USART)  

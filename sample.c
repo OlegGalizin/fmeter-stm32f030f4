@@ -15,12 +15,19 @@ void main()
 	GPIOA->OSPEEDR = TO_GPIO_OSPEEDR(A, PINS);	
 	GPIOA->PUPDR = TO_GPIO_PUPDR(A, PINS);
 	GPIOA->ODR = TO_GPIO_ODR(A, PINS);
-
-
-
 	GPIOA->AFR[0] = TO_GPIO_AFRL(A, PINS);
   GPIOA->AFR[1] = TO_GPIO_AFRH(A, PINS);
 
+	RCC->CR |= RCC_CR_HSEON;
+	while ( (RCC->CR & RCC_CR_HSERDY) == 0)
+		; /* BLANK */
+
+	RCC->CFGR = RCC_CFGR_PLLMUL_2|RCC_CFGR_PLLSRC ; // pll x6  HSE
+	RCC->CR |= RCC_CR_PLLON;
+  while((RCC->CR & RCC_CR_PLLRDY) == 0)
+		; /* BLANK */
+	RCC->CFGR |= RCC_CFGR_SW_1; // switch to pll
+	
   GPIO_SET(LCD_PWR);
   LcdInit();
 	LcdClear();
