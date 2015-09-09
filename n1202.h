@@ -4,21 +4,21 @@
 
 static void LCD_DELAY(void) 
 { 
-	int i=MAIN_F/6000000/3+1; 
+  int i=MAIN_F/6000000/3+1; 
   while(i) 
   {
     __NOP();
     i--;
-	}; 
+  }; 
 }
 static void LCD_BIG_DELAY(void)
 {
-	int i=MAIN_F/100/3+1; 
+  int i=MAIN_F/100/3+1; 
   while(i) 
   {
     __NOP();
     i--;
-	}; 
+  }; 
 }
 
 #if defined(LCD_USART)  

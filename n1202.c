@@ -156,10 +156,10 @@ void LcdInit ()
 //Clear display
 void LcdClear()
 {
-	uint16_t j = 9;
+  uint16_t j = 9;
 
-	while ( j-- )
-	{
+  while ( j-- )
+  {
     uint16_t i = 96;
 
     LcdGotoXY(0,j);
@@ -168,7 +168,7 @@ void LcdClear()
     {
       LcdSend(0x00, LCD_DATA|LCD_SET_CE|LCD_RESET_CE);
     }  
-	}
+  }
 }
 
 /*--------------------------------------------------------------------------------------------------

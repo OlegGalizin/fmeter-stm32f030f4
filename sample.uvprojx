@@ -363,7 +363,7 @@
             <useXO>0</useXO>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define></Define>
+              <Define>BIG</Define>
               <Undefine></Undefine>
               <IncludePath></IncludePath>
             </VariousControls>
