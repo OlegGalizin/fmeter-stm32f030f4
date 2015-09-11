@@ -383,6 +383,11 @@ void LcdSend ( uint8_t Data, uint8_t Flags )
 
 
 #if defined(LCDDEBUG)
+static delay(int d)
+{
+  volatile int i;
+  for (i=0; i<d;i++);
+}
 void SystemInit()
 {
 }
@@ -392,45 +397,29 @@ int main(void)
   volatile unsigned i;
   int j;
 
-  RCC->CFGR |= RCC_CFGR_HPRE_DIV2|RCC_CFGR_PPRE1_DIV4;
-  RCC->APB2ENR |= RCC_APB2ENR_IOPAEN |RCC_APB2ENR_IOPBEN |RCC_APB2ENR_AFIOEN|
-                  RCC_APB2ENR_USART1EN|RCC_APB2ENR_TIM1EN|RCC_APB2ENR_ADC1EN|RCC_APB2ENR_TIM17EN;
-  RCC->APB1ENR |= RCC_APB1ENR_TIM3EN|RCC_APB1ENR_TIM2EN|RCC_APB1ENR_TIM7EN|
-                  RCC_APB1ENR_BKPEN|RCC_APB1ENR_PWREN|RCC_APB1ENR_DACEN; 
-  RCC->AHBENR |= RCC_AHBENR_DMA1EN;
+  RCC->AHBENR |= RCC_AHBENR_GPIOAEN|RCC_AHBENR_GPIOBEN;
+  GPIOA->MODER = TO_GPIO_MODER(A, PINS);
+  GPIOA->OTYPER = TO_GPIO_OTYPER(A, PINS);
+  GPIOA->OSPEEDR = TO_GPIO_OSPEEDR(A, PINS);  
+  GPIOA->PUPDR = TO_GPIO_PUPDR(A, PINS);
+  GPIOA->ODR = TO_GPIO_ODR(A, PINS);
+  GPIOA->AFR[0] = TO_GPIO_AFRL(A, PINS);
+  GPIOA->AFR[1] = TO_GPIO_AFRH(A, PINS);
 
-  GPIOB->ODR = 0; /* PB4 is pull up default !!!! */
-  GPIOA->CRL = TO_GPIO_CRL(A, PWR_ON )|TO_GPIO_CRL(A, K3)|TO_GPIO_CRL(A, K2)|TO_GPIO_CRL(A, ADC )|
-               TO_GPIO_CRL(A, INSTR_OUT)|TO_GPIO_CRL(A, DAC_OFF )|TO_GPIO_CRL(A, DAC_M  );
-  GPIOA->CRH = TO_GPIO_CRH(A, LCD_CLK)|TO_GPIO_CRH(A, LCD_DA)|TO_GPIO_CRH(A, LCD_CE)|
-               TO_GPIO_CRH(A, LCD_RESET)|TO_GPIO_CRH(A, LCD_LED);
-  GPIOB->CRL = TO_GPIO_CRL(B, BUT1)|TO_GPIO_CRL(B, BUT2)|TO_GPIO_CRL(B, V_BAT)|
-               TO_GPIO_CRL(B, PROBE1)|TO_GPIO_CRL(B, PROBE2)|TO_GPIO_CRL(B, IV1)|TO_GPIO_CRL(B, IV2);
-  GPIOB->CRH = TO_GPIO_CRH(B, K1)|TO_GPIO_CRH(B, I_V_MEAS)|TO_GPIO_CRH(B, CP0)|TO_GPIO_CRH(B, CP1)|
-               TO_GPIO_CRH(B, BUT3)|TO_GPIO_CRH(B, PWM);
-  GPIOB->BSRR = TO_GPIO_BSRR(B, BUT1)|TO_GPIO_BSRR(B, BUT2)|
-                TO_GPIO_BSRR(B, BUT3)|TO_GPIO_BSRR(B, PROBE1)|TO_GPIO_BSRR(B, PROBE2)|TO_GPIO_BSRR(B, K1);
-  GPIOA->BSRR = TO_GPIO_BSRR(A, K2)|TO_GPIO_BSRR(A, PWR_ON);
-  AFIO->MAPR |= AFIO_MAPR_SWJ_CFG_JTAGDISABLE; /* JTAG as GPIO only SWD */
-  GPIO_SET(PWR_ON);
-
-  //Запуск кварца
   RCC->CR |= RCC_CR_HSEON;
-  while((RCC->CR & RCC_CR_HSERDY) == 0)
+  while ( (RCC->CR & RCC_CR_HSERDY) == 0)
     ; /* BLANK */
 
-  //запуск PLL
-  RCC->CFGR = RCC_CFGR_PLLXTPRE|RCC_CFGR_PLLMULL4|RCC_CFGR_PLLSRC /* 12 MHz/2*4 from prediv  = 24 MHz*/
-    |RCC_CFGR_ADCPRE_DIV4; // 24/4=6Mhz ADC clock
+  RCC->CFGR = RCC_CFGR_PLLMUL_2|RCC_CFGR_PLLSRC ; // pll x6  HSE
   RCC->CR |= RCC_CR_PLLON;
   while((RCC->CR & RCC_CR_PLLRDY) == 0)
     ; /* BLANK */
-
-  // переключение на PLL
-  RCC->CFGR |= RCC_CFGR_SW_PLL;
-
+  RCC->CFGR |= RCC_CFGR_SW_1; // switch to pll
+  
+  GPIO_SET(LCD_PWR);
   LcdInit();
   LcdClear();
+
   LcdChr ( Y_POSITION*0+X_POSITION*1+13, "Hello world" );
   LcdChr ( Y_POSITION*1+X_POSITION*1+13+INVERSE+X_OFFSET*3, "Hello world" );
   LcdChr ( Y_POSITION*2+X_POSITION*0+2, "12" );  
@@ -459,6 +448,7 @@ int main(void)
     Str[4] = k + '0';
 
     LcdChr ( Y_POSITION*7+X_POSITION*8+6, Str );  
+    delay(100000);
   }
 
   LcdChr ( Y_POSITION*6+X_POSITION*6+10, "V0-Range = 25" );  
@@ -483,6 +473,7 @@ int main(void)
     Str[4] = k + '0';
 
     LcdChr ( Y_POSITION*7+X_POSITION*8+6, Str );  
+    delay(100000);
   }
   LcdContrast(16); //Default
 
