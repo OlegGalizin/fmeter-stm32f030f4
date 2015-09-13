@@ -88,9 +88,9 @@ __Vectors       DCD     __initial_sp                   ; Top of Stack
                 DCD     RTC_IRQHandler                 ; RTC through EXTI Line
                 DCD     FLASH_IRQHandler               ; FLASH
                 DCD     RCC_IRQHandler                 ; RCC
-                DCD     EXTI0_1_IRQHandler             ; EXTI Line 0 and 1
+                DCD     ClearExtI;EXTI0_1_IRQHandler             ; EXTI Line 0 and 1
                 DCD     EXTI2_3_IRQHandler             ; EXTI Line 2 and 3
-                DCD     EXTI4_15_IRQHandler            ; EXTI Line 4 to 15
+                DCD     ClearExtI;EXTI4_15_IRQHandler            ; EXTI Line 4 to 15
                 DCD     0                              ; Reserved
                 DCD     DMA1_Channel1_IRQHandler       ; DMA1 Channel 1
                 DCD     DMA1_Channel2_3_IRQHandler     ; DMA1 Channel 2 and Channel 3
@@ -183,7 +183,7 @@ SysTick_Handler PROC
                 ENDP
 
 Default_Handler PROC
-
+				EXPORT  ClearExtI                      [WEAK]
                 EXPORT  WWDG_IRQHandler                [WEAK]
                 EXPORT  RTC_IRQHandler                 [WEAK]
                 EXPORT  FLASH_IRQHandler               [WEAK]
@@ -210,6 +210,7 @@ Default_Handler PROC
                 EXPORT  USART2_IRQHandler              [WEAK]
 
 
+ClearExtI
 WWDG_IRQHandler
 RTC_IRQHandler
 FLASH_IRQHandler
