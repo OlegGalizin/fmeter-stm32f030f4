@@ -402,6 +402,8 @@ int main()
   while ( (RCC->CR & RCC_CR_HSERDY) == 0)
     ; /* BLANK */
 
+  FLASH->ACR |= FLASH_ACR_LATENCY|FLASH_ACR_PRFTBE;// 1 wait state + prefetch
+
   RCC->CFGR = RCC_CFGR_PLLMUL_2|RCC_CFGR_PLLSRC ; // pll x6  HSE
   RCC->CR |= RCC_CR_PLLON;
   while((RCC->CR & RCC_CR_PLLRDY) == 0)
