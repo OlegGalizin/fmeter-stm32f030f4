@@ -137,19 +137,18 @@ void TimersInit()
 void OutValue(uint8_t Y, uint8_t X, uint32_t Num, uint8_t DotPosition, uint8_t SelectPos)
 {
   int i;
-  int Div = 100000000;
+  int Div = 100000;
   uint8_t DisplayFlag = 0;
   
-  for(i=0; i<9; i++)
+  for(i=0; i<6; i++)
   {
     char Chr;
     uint32_t Light = 0;
 
     if (i == DotPosition )
     {
-      LcdChr ( Y_POSITION*(Y)+X_POSITION*X+1, " " );
-      LcdChr ( Y_POSITION*(Y+1)+X_POSITION*X+1, "." );
-      X=X+1;
+      LcdChr ( Y_POSITION*(Y)+X_POSITION*X+MUL2+1, "." );
+      X=X+2;
       DisplayFlag++;
     }
 
@@ -159,7 +158,7 @@ void OutValue(uint8_t Y, uint8_t X, uint32_t Num, uint8_t DotPosition, uint8_t S
     }
 
     Chr = Num / Div;
-    if ( DisplayFlag == 0 && Chr == 0)
+    if ( DisplayFlag == 0 && Chr == 0 && i < 5)
       Chr = ' ';
     else
     {
@@ -170,16 +169,16 @@ void OutValue(uint8_t Y, uint8_t X, uint32_t Num, uint8_t DotPosition, uint8_t S
     {
       Light = INVERSE;
     } 
-    LcdChr (Light + Y_POSITION*Y+X_POSITION*X+1, &Chr );
+    LcdChr (Light + Y_POSITION*Y+X_POSITION*X+MUL2+1, &Chr );
     X = X + 2;
     Num = Num % Div;
     Div = Div / 10;
   }
-  if ( DotPosition == 4)
-  {
-    LcdChr ( Y_POSITION*(Y)+X_POSITION*X+1, " " );
-    LcdChr ( Y_POSITION*(Y+1)+X_POSITION*X+1, " " );
-  }
+//  if ( DotPosition == 4)
+//  {
+//    LcdChr ( Y_POSITION*(Y)+X_POSITION*X+1, " " );
+//    LcdChr ( Y_POSITION*(Y+1)+X_POSITION*X+1, " " );
+//  }
 }
 
 
@@ -228,10 +227,20 @@ int main()
   	if (ResultReady)
     { 
       volatile double Result;
+      uint32_t IntRes;
       
       ResultReady = 0;
       Result = (double)ResultInCount * (double)MAIN_F * (double)1000 / (double)ResultRefCount;
-      OutValue(1, 0, Result, 20, 20);
+      IntRes = Result/1000000;     
+//      if ( IntRes > 0)
+      {
+        OutValue(0, 0, IntRes, 20, 20);
+        LcdChr(14*X_POSITION + Y_POSITION*0 + MUL2 + 1, "k");
+      }
+      IntRes = ((uint32_t)Result)%1000000;     
+      OutValue(3, 0, IntRes, 3, 20);
+//      LcdChr(12*X_POSITION + Y_POSITION*3 + MUL2 + 3, "Hz");
+      
     }
 //    __WFI(); // It decreases power but turn off the SWD!!!!
   }
