@@ -5,7 +5,7 @@
 //                          AINPUT  OUT10MHZ                PULL_DOWN   AF0  0
 //                          INPUT   OUT2MHZ  0              PULL_UP     AF7  1
 //                          OUTPUT  OUT50MHZ OUT_OPENDRAIN  0
-//                          AOUTPUT
+//                          AIO
 //#define PIN_NAME PORT, PIN, MODE, SPEED,   OUT_MODE,      PULL,      , AF, SET
 // PORT - A, B, C, D и тд - порт ВВ
 // PIN - номер бита в порте 0, 1  и т.д.
@@ -18,7 +18,7 @@
 #define AINPUT (GPIO_MODER_MODER0_0|GPIO_MODER_MODER0_1)  //аналоговый вход
 #define INPUT 0  // вход цифровой 
 #define OUTPUT GPIO_MODER_MODER0_0 //выход
-#define AOUTPUT GPIO_MODER_MODER0_1 //алтернативный выход
+#define AIO GPIO_MODER_MODER0_1 //алтернативный i/o defined by the pherefery
 
 // скорость. Имеет смысл только для выхода. Объединяется | с режимом
 #define OUT10MHZ GPIO_OSPEEDR_OSPEEDR0_0  // режим выхода среднескоростной - в поле MODE
@@ -48,9 +48,10 @@
 #define _TO_GPIO_1BIT(DEST_PORT, PORT, PIN, BITS) \
   ((GPIO##DEST_PORT == GPIO##PORT)*((BITS)<<(PIN)))
 #define _TO_GPIO_4LO(DEST_PORT, PORT, PIN, BITS) \
-((GPIO##DEST_PORT == GPIO##PORT)*(((PIN)<8)?((BITS)<<((PIN)*4)):0))
+((GPIO##DEST_PORT == GPIO##PORT)*(((PIN)<8)?((BITS)<<(((PIN)<8?(PIN):1)*4)):0))
 #define _TO_GPIO_4HI(DEST_PORT, PORT, PIN, BITS) \
-((GPIO##DEST_PORT == GPIO##PORT)*(((PIN)>=8)?((BITS)<<((PIN-8)*4)):0))
+((GPIO##DEST_PORT == GPIO##PORT)*(((PIN)>=8)?((BITS)<<(((PIN)>=8?(PIN)-8:1)*4)):0))
+//((GPIO##DEST_PORT == GPIO##PORT)*(((PIN)>=8)?((BITS)<<((PIN-8)*4)):0))
 
 #define _TO_GPIO_MODER(DEST_PORT, PORT, PIN, MODE, SPEED, OUT_MODE, PULL, AF, SET) \
   _TO_GPIO_2BIT(DEST_PORT, PORT, PIN, MODE)
