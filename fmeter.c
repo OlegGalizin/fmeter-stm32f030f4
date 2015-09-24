@@ -50,14 +50,18 @@ T1SetReastart:
         Inc = 128; // this delay is not important on hi freq
       }
 
-      CurInCounter += Inc;
-      InCatchValue = CurInCounter;   
-      TIM1->CCR1 = CurInCounter; // generate compare event in some time of input signal
-
       TIM1->CCMR1 = TIM_CCMR1_OC1M_2; // force low
       TIM1->SR &= ~TIM_SR_CC1IF; // Clear compare flag
+      TIM1->CCR1 = TIM1->CNT;
       TIM1->CCMR1 = TIM_CCMR1_OC1M_0; // Set 1 on compare
-      if (CurInCounter - PrevInCounter < 100) // In freq < 100 low freq. Every period is important
+
+      CurHiIn = InHiCounter;
+      CurLoIn = TIM1->CNT;
+      if ((TIM1->SR & TIM_SR_UIF) && (CurLoIn < 0x7FFF))
+        CurHiIn++;
+      TIM1->CCR1 = CurLoIn + Inc; // generate compare event in some time of input signal
+           
+      if (Inc == 1 && TIM1->CCR1 - TIM1->CNT - 1 > 0x7FFF) // raise was skipped on Inc == 1
       {
         if (TIM1->SR & TIM_SR_CC1IF) // Very rerary event - edge of input signal in CCR aasigned time
         {
@@ -65,6 +69,12 @@ T1SetReastart:
           goto T1SetReastart;
         }
       }
+
+      CurInCounter = CurLoIn + Inc;
+      if ((TIM1->SR & TIM_SR_UIF) && (CurLoIn < 0x7FFF))
+        CurHiIn++;
+      CurInCounter += ((uint32_t)CurHiIn << 16);
+      InCatchValue = CurInCounter;   
       RefNextCheck = RefNextCheck + MeasureInterval;
       TIM3->CCR3 = RefNextCheck;
     } // end next timeout check
@@ -131,6 +141,12 @@ void TimersInit()
 
   TIM1->CR1 |= TIM_CR1_CEN;
   TIM3->CR1 |= TIM_CR1_CEN;
+  
+  TIM14->ARR = 48-1; // test signal 1 MHz
+  TIM14->CCR1 = 23;
+  TIM14->CCMR1 = TIM_CCMR1_OC1M_1|TIM_CCMR1_OC1M_2; //pwm 1 at PWMOUT (PA7)
+  TIM14->CCER = TIM_CCER_CC1E;
+  TIM14->CR1 |= TIM_CR1_CEN;
 }
 
 
@@ -188,7 +204,7 @@ int main()
 
   RCC->AHBENR |= RCC_AHBENR_GPIOAEN|RCC_AHBENR_GPIOBEN;
   RCC->APB2ENR = RCC_APB2ENR_SYSCFGEN|RCC_APB2ENR_TIM17EN|RCC_APB2ENR_TIM1EN|RCC_APB2ENR_DBGMCUEN;
-  RCC->APB1ENR = RCC_APB1ENR_TIM3EN;
+  RCC->APB1ENR = RCC_APB1ENR_TIM3EN|RCC_APB1ENR_TIM14EN;
   GPIOA->MODER = TO_GPIO_MODER(A, PINS);
   GPIOA->OTYPER = TO_GPIO_OTYPER(A, PINS);
   GPIOA->OSPEEDR = TO_GPIO_OSPEEDR(A, PINS);  
@@ -200,7 +216,7 @@ int main()
   GPIOB->PUPDR = TO_GPIO_PUPDR(B, PINS);
 
   DBGMCU->APB1FZ |= DBGMCU_APB1_FZ_DBG_TIM3_STOP;
-  DBGMCU->APB2FZ |= DBGMCU_APB2_FZ_DBG_TIM1_STOP;
+  DBGMCU->APB2FZ |= DBGMCU_APB2_FZ_DBG_TIM1_STOP|DBGMCU_APB1_FZ_DBG_TIM14_STOP;
 
   
   RCC->CR |= RCC_CR_HSEON;
