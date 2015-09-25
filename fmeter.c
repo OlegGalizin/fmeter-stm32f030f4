@@ -51,8 +51,8 @@ T1SetReastart:
       }
 
       TIM1->CCMR1 = TIM_CCMR1_OC1M_2; // force low
+      TIM1->CCR1 = TIM1->CNT - 1; // exclude geting capt in 64000 next tick
       TIM1->SR &= ~TIM_SR_CC1IF; // Clear compare flag
-      TIM1->CCR1 = TIM1->CNT;
       TIM1->CCMR1 = TIM_CCMR1_OC1M_0; // Set 1 on compare
 
       CurHiIn = InHiCounter;
