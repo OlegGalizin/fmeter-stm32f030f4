@@ -18,25 +18,25 @@ static uint8_t  ResultReady;    // Measure result ready
 
 #define MeasureInterval 48000 /* Clock in mS */ * 1000 /* mS */
 
-void TIM3_IRQHandler()
+void TIM1_CC_IRQHandler()
 {
-  if ( TIM3->SR & TIM_SR_CC3IF)
+  if ( TIM1->SR & TIM_SR_CC3IF)
   {
     uint16_t RefHi = RefHiCounter;
     
-    TIM3->SR &= ~TIM_SR_CC3IF;
-    if ((TIM3->SR & TIM_SR_UIF) && (TIM3->CCR3 < 0x7FFF))
+    TIM1->SR &= ~TIM_SR_CC3IF;
+    if ((TIM1->SR & TIM_SR_UIF) && (TIM1->CCR3 < 0x7FFF))
       RefHi++;
       
     if (RefHi == RefNextCheck>>16) // End of the measure
-T1SetReastart:
+TSetReastart:
     {
       uint16_t Inc = 2;
       uint16_t CurHiIn = InHiCounter;
-      uint16_t CurLoIn = TIM1->CNT;
+      uint16_t CurLoIn = TIM3->CNT;
       uint32_t CurInCounter;
       
-      if ((TIM1->SR & TIM_SR_UIF) && (CurLoIn < 0x7FFF))
+      if ((TIM3->SR & TIM_SR_UIF) && (CurLoIn < 0x7FFF))
         CurHiIn++;
 
       CurInCounter = (CurHiIn<<16) + CurLoIn;
@@ -50,44 +50,44 @@ T1SetReastart:
         Inc = 128; // this delay is not important on hi freq
       }
 
-      TIM1->CCMR1 = TIM_CCMR1_OC1M_2; // force low
-      TIM1->CCR1 = TIM1->CNT - 1; // exclude geting capt in 64000 next tick
-      TIM1->SR &= ~TIM_SR_CC1IF; // Clear compare flag
-      TIM1->CCMR1 = TIM_CCMR1_OC1M_0; // Set 1 on compare
+      TIM3->CCMR1 = TIM_CCMR1_OC1M_2; // force low
+      TIM3->CCR1 = TIM3->CNT - 1; // exclude geting capt in 64000 next tick
+      TIM3->SR &= ~TIM_SR_CC1IF; // Clear compare flag
+      TIM3->CCMR1 = TIM_CCMR1_OC1M_0; // Set 1 on compare
 
       CurHiIn = InHiCounter;
-      CurLoIn = TIM1->CNT;
-      if ((TIM1->SR & TIM_SR_UIF) && (CurLoIn < 0x7FFF))
+      CurLoIn = TIM3->CNT;
+      if ((TIM3->SR & TIM_SR_UIF) && (CurLoIn < 0x7FFF))
         CurHiIn++;
-      TIM1->CCR1 = CurLoIn + Inc; // generate compare event in some time of input signal
+      TIM3->CCR1 = CurLoIn + Inc; // generate compare event in some time of input signal
            
-      if (Inc == 1 && TIM1->CCR1 - TIM1->CNT - 1 > 0x7FFF) // raise was skipped on Inc == 1
+      if (Inc == 1 && TIM3->CCR1 - TIM3->CNT - 1 > 0x7FFF) // raise was skipped on Inc == 1
       {
-        if (TIM1->SR & TIM_SR_CC1IF) // Very rerary event - edge of input signal in CCR aasigned time
+        if (TIM3->SR & TIM_SR_CC1IF) // Very rerary event - edge of input signal in CCR aasigned time
         {
-          TIM3->SR &= ~TIM_SR_CC4IF; // This inp raise can be not correct - skip it
-          goto T1SetReastart;
+          TIM1->SR &= ~TIM_SR_CC4IF; // This inp raise can be not correct - skip it
+          goto TSetReastart;
         }
       }
 
       CurInCounter = CurLoIn + Inc;
-      if ((TIM1->SR & TIM_SR_UIF) && (CurLoIn < 0x7FFF))
+      if ((TIM3->SR & TIM_SR_UIF) && (CurLoIn < 0x7FFF))
         CurHiIn++;
       CurInCounter += ((uint32_t)CurHiIn << 16);
       InCatchValue = CurInCounter;   
       RefNextCheck = RefNextCheck + MeasureInterval;
-      TIM3->CCR3 = RefNextCheck;
+      TIM1->CCR3 = RefNextCheck;
     } // end next timeout check
   }
 
-  if ( TIM3->SR & TIM_SR_CC4IF)
+  if ( TIM1->SR & TIM_SR_CC4IF)
   {
     uint32_t CurRef = RefHiCounter;
     
-    TIM3->SR &= ~TIM_SR_CC4IF;
-    if ((TIM3->SR & TIM_SR_UIF) && (TIM3->CCR4 < 0x7FFF))
+    TIM1->SR &= ~TIM_SR_CC4IF;
+    if ((TIM1->SR & TIM_SR_UIF) && (TIM1->CCR4 < 0x7FFF))
       CurRef++;
-    CurRef = (((uint32_t)CurRef)<<16) + TIM3->CCR4;
+    CurRef = (((uint32_t)CurRef)<<16) + TIM1->CCR4;
     ResultRefCount = CurRef - PrevRefCounter;
     PrevRefCounter = CurRef;
     ResultInCount  = InCatchValue - PrevInCounter;
@@ -95,42 +95,45 @@ T1SetReastart:
     ResultReady = 1;
 //    TIM1->CCMR1 = TIM_CCMR1_OC1M_2; //Force low level
   }
-  
-  if ( TIM3->SR & TIM_SR_UIF)
-  {
-    RefHiCounter++;
-    TIM3->SR &= ~TIM_SR_UIF;
-  }
 }
 
 void TIM1_BRK_UP_TRG_COM_IRQHandler()
 {
+  if ( TIM1->SR & TIM_SR_UIF)
+  {
+    RefHiCounter++;
+    TIM1->SR &= ~TIM_SR_UIF;
+  }
+}
+
+void TIM3_IRQHandler()
+{
   InHiCounter++;
-  TIM1->SR &= ~TIM_SR_UIF;
+  TIM3->SR &= ~TIM_SR_UIF;
 }
 
 void TimersInit()
 {
   /* TI1 pass throuht CC1 to MMS. CC2 used with prescaler */
-  TIM3->CR2 = TIM_CR2_MMS_0|TIM_CR2_MMS_1; //MMC - compare pulse
-  TIM3->CCMR1 = TIM_CCMR1_CC1S_0; //|TIM_CCMR1_CC2S_1| // TI1 source for CC1
-//             |TIM_CCMR1_IC2PSC_0|TIM_CCMR1_IC2PSC_1; // prescaler == 8
+  TIM1->CR2 = TIM_CR2_MMS_0|TIM_CR2_MMS_1; //MMC - compare pulse
+  TIM1->CCMR1 = TIM_CCMR1_CC1S_1|TIM_CCMR1_CC2S_0| // TI2 source for CC1 and CC2
+             TIM_CCMR1_IC2PSC_0|TIM_CCMR1_IC2PSC_1; // prescaler == 8 for CC2
 
-  /* CC4 is used for catch one of input raise throuht T1 */
+  /* CC4 is used for catch one of input raise throuht T3 */
   /* CC3 for time count - 48000 clocks == 1mS */
-  TIM3->CCMR2 = TIM_CCMR2_CC4S_0|TIM_CCMR2_CC4S_1; // TRC source for CC4
-  TIM3->ARR = 0xFFFF; 
-  TIM3->CCER = TIM_CCER_CC1E|TIM_CCER_CC4E; // CC1 CC4 capture enable
-  TIM3->DIER = TIM_DIER_UIE|TIM_DIER_CC4IE|TIM_DIER_CC3IE; // interrupt by update,CC4 capture, CC3 compare
-  TIM3->CCR3 = MeasureInterval;
+  TIM1->CCMR2 = TIM_CCMR2_CC4S_0|TIM_CCMR2_CC4S_1; // TRC source for CC4, CC3  - OUTPUT
+  TIM1->ARR = 0xFFFF; 
+  TIM1->CCER = TIM_CCER_CC1E|TIM_CCER_CC4E; // CC1 CC4 capture enable
+  TIM1->DIER = TIM_DIER_UIE|TIM_DIER_CC4IE|TIM_DIER_CC3IE; // interrupt by update,CC4 capture, CC3 compare
+  TIM1->CCR3 = MeasureInterval;
   RefNextCheck = MeasureInterval;
-  TIM3->SMCR = 0|TIM_SMCR_SMS_1|TIM_SMCR_SMS_2; //source is TIM1 MMC,Enable by SMC  - some mode MUST be ON to ON SMC!
+  TIM1->SMCR = TIM_SMCR_TS_1|TIM_SMCR_SMS_1|TIM_SMCR_SMS_2; //source is TIM3 MMC,Enable by SMC  - some mode MUST be ON to ON SMC!
 
-  TIM1->ARR = 0xFFFF;
-  TIM1->SMCR = TIM_SMCR_TS_1|TIM_SMCR_SMS_0|TIM_SMCR_SMS_1|TIM_SMCR_SMS_2; // TIM3 MMC is source, external clock 1.
-  TIM1->DIER =  TIM_DIER_UIE; // interrupts by update
-  TIM1->CCMR1 = TIM_CCMR1_OC1M_2;//Force low level
-  TIM1->CR2 = TIM_CR2_MMS_2; // OC1REF as source for MMC
+  TIM3->ARR = 0xFFFF;
+  TIM3->SMCR = 0|TIM_SMCR_SMS_0|TIM_SMCR_SMS_1|TIM_SMCR_SMS_2; // TIM1 MMC is source, external clock 1.
+  TIM3->DIER =  TIM_DIER_UIE; // interrupts by update
+  TIM3->CCMR1 = TIM_CCMR1_OC1M_2;//Force low level
+  TIM3->CR2 = TIM_CR2_MMS_2; // OC1REF as source for MMC
   
 //  TIM1->CCER = TIM_CCER_CC1NE; // Out CC1N to PA7
 //  TIM1->BDTR = TIM_BDTR_MOE; // All outputs enable
@@ -138,15 +141,18 @@ void TimersInit()
   
   NVIC_EnableIRQ(TIM3_IRQn); /* Timer IRQ */
   NVIC_EnableIRQ(TIM1_BRK_UP_TRG_COM_IRQn); /* Timer IRQ */
-
-  TIM1->CR1 |= TIM_CR1_CEN;
+  NVIC_EnableIRQ(TIM1_CC_IRQn);/* Timer IRQ */
+  NVIC_SetPriority(TIM1_BRK_UP_TRG_COM_IRQn, 4);
   TIM3->CR1 |= TIM_CR1_CEN;
+  TIM1->CR1 |= TIM_CR1_CEN;
   
+#if 1
   TIM14->ARR = 48-1; // test signal 1 MHz
   TIM14->CCR1 = 23;
   TIM14->CCMR1 = TIM_CCMR1_OC1M_1|TIM_CCMR1_OC1M_2; //pwm 1 at PWMOUT (PA7)
   TIM14->CCER = TIM_CCER_CC1E;
   TIM14->CR1 |= TIM_CR1_CEN;
+#endif
 }
 
 

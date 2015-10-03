@@ -12,10 +12,10 @@
 #define LCD_PWR   A, 0, OUTPUT, OUT10MHZ, 0, 0, 0, 0
 #define SWDIO     A, 13, AIO, OUT50MHZ, 0, PULL_UP, AF0, 0
 #define SWDCLK    A, 14, AIO, OUT2MHZ, 0, PULL_DOWN, AF0, 0
-#define BUT1      A, 9, INPUT, 0, 0, PULL_UP, 0, 0
-#define BUT2      A, 10, INPUT, 0, 0, PULL_UP, 0, 0
+#define BUT1      A, 5, INPUT, 0, 0, PULL_UP, 0, 0
+#define BUT2      A, 6, INPUT, 0, 0, PULL_UP, 0, 0
 #define BUT3      B, 1, INPUT, 0, 0, PULL_UP, 0, 0
-#define TIMIN     A, 6, AIO, 0, 0, PULL_UP, AF1, 0 // AF1 - TIM3_CH1
+#define TIMIN     A, 9, AIO, 0, 0, PULL_UP, AF2, 0 // AF2 - TIM1_CH2
 //#define T1C1N     A, 7, AIO, OUT10MHZ, 0, 0, AF2, 0
 #define PWMOUT    A, 7, AIO, OUT10MHZ, 0, 0, AF4, 0
 
