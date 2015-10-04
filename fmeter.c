@@ -15,6 +15,10 @@ static uint32_t InCatchValue; // current catched value T1CC1
 static uint32_t ResultRefCount; // Measure result
 static uint32_t ResultInCount;  // Measure result
 static uint8_t  ResultReady;    // Measure result ready
+static uint8_t  Prescaler = 1;
+
+#define DMA3_TRANSFER_COUNT 6
+static uint16_t Dma3CatchArray[DMA3_TRANSFER_COUNT];
 
 #define MeasureInterval 48000 /* Clock in mS */ * 1000 /* mS */
 
@@ -92,8 +96,53 @@ TSetReastart:
     PrevRefCounter = CurRef;
     ResultInCount  = InCatchValue - PrevInCounter;
     PrevInCounter = InCatchValue;
-    ResultReady = 1;
+    ResultReady++;
 //    TIM1->CCMR1 = TIM_CCMR1_OC1M_2; //Force low level
+  }
+}
+
+static void SwitchPrescaler(int NeedPrescaler)
+{
+  uint32_t NewCCMR;
+  
+  TIM3->CR1 &= ~TIM_CR1_CEN;
+  TIM1->CR1 &= ~TIM_CR1_CEN;
+
+  TIM1->CCR3 = MeasureInterval;
+  RefNextCheck = 50;
+  RefHiCounter = 0;
+  TIM1->CNT = 0; // To Start almost immediate
+  ResultReady = 0xFF; //skip next display
+  
+  NewCCMR = TIM1->CCMR1 & ~TIM_CCMR1_IC1PSC;
+  Prescaler = 1;
+  if (NeedPrescaler)
+  {
+    NewCCMR |= (TIM_CCMR1_IC1PSC_0|TIM_CCMR1_IC1PSC_1); // prescaler == 8 
+    Prescaler = 8;
+  }
+  TIM1->CCMR1 = NewCCMR;
+  
+  TIM3->CR1 |= TIM_CR1_CEN;
+  TIM1->CR1 |= TIM_CR1_CEN;
+}
+
+#define ThresholdValue 16 // 2*8. max Fin = Fref/2. 8 - prescaler CCR2
+
+static void AnalizeFreq()
+{
+  uint32_t Diff;
+
+  Diff = Dma3CatchArray[DMA3_TRANSFER_COUNT-1] - Dma3CatchArray[1];
+  if ((Diff < (DMA3_TRANSFER_COUNT-2)* (ThresholdValue+2)) && // Too higth without prescaler. 16 - for max F without prescaler
+       (Prescaler == 1) )
+  {
+    SwitchPrescaler(1);
+  }
+  if ((Diff > (DMA3_TRANSFER_COUNT-2)* (ThresholdValue+4)) && // Too low with prescaler.
+       (Prescaler >1))
+  {
+    SwitchPrescaler(0);
   }
 }
 
@@ -104,6 +153,22 @@ void TIM1_BRK_UP_TRG_COM_IRQHandler()
     RefHiCounter++;
     TIM1->SR &= ~TIM_SR_UIF;
   }
+
+  DMA1_Channel3->CCR &= ~DMA_CCR_EN;
+
+  if (DMA1->ISR & DMA_ISR_TCIF3)
+  {
+    DMA1->IFCR |= DMA_IFCR_CGIF3;
+    AnalizeFreq();
+  }
+  else // Too low freq < F_MAIN/65000/DMA3_TRANSFER_COUNT
+  {
+    if (Prescaler > 1 )
+      SwitchPrescaler(0);
+  }
+
+  DMA1_Channel3->CNDTR = DMA3_TRANSFER_COUNT;
+  DMA1_Channel3->CCR |= DMA_CCR_EN;
 }
 
 void TIM3_IRQHandler()
@@ -112,6 +177,11 @@ void TIM3_IRQHandler()
   TIM3->SR &= ~TIM_SR_UIF;
 }
 
+
+//void DMA1_Channel2_3_IRQHandler()
+//{
+//  DMA1->IFCR |= DMA_IFCR_CGIF3;
+//}
 void TimersInit()
 {
   /* TI1 pass throuht CC1 to MMS. CC2 used with prescaler */
@@ -123,8 +193,8 @@ void TimersInit()
   /* CC3 for time count - 48000 clocks == 1mS */
   TIM1->CCMR2 = TIM_CCMR2_CC4S_0|TIM_CCMR2_CC4S_1; // TRC source for CC4, CC3  - OUTPUT
   TIM1->ARR = 0xFFFF; 
-  TIM1->CCER = TIM_CCER_CC1E|TIM_CCER_CC4E; // CC1 CC4 capture enable
-  TIM1->DIER = TIM_DIER_UIE|TIM_DIER_CC4IE|TIM_DIER_CC3IE; // interrupt by update,CC4 capture, CC3 compare
+  TIM1->CCER = TIM_CCER_CC1E|TIM_CCER_CC2E|TIM_CCER_CC4E; // CC1 CC4 capture enable
+  TIM1->DIER = TIM_DIER_UIE|TIM_DIER_CC4IE|TIM_DIER_CC3IE|TIM_DIER_CC2DE; // interrupt by update,CC4 capture, CC3 compare, CC2 DMA
   TIM1->CCR3 = MeasureInterval;
   RefNextCheck = MeasureInterval;
   TIM1->SMCR = TIM_SMCR_TS_1|TIM_SMCR_SMS_1|TIM_SMCR_SMS_2; //source is TIM3 MMC,Enable by SMC  - some mode MUST be ON to ON SMC!
@@ -153,6 +223,12 @@ void TimersInit()
   TIM14->CCER = TIM_CCER_CC1E;
   TIM14->CR1 |= TIM_CR1_CEN;
 #endif
+
+  DMA1_Channel3->CCR = DMA_CCR_MSIZE_0|DMA_CCR_PSIZE_0|DMA_CCR_MINC/*|DMA_CCR_TCIE */; //16 bit memory and periphery, memory increment,complete interrupt 
+  DMA1_Channel3->CNDTR = DMA3_TRANSFER_COUNT;
+  DMA1_Channel3->CPAR = (uint32_t)(&TIM1->CCR2);
+  DMA1_Channel3->CMAR = (uint32_t)(&Dma3CatchArray[0]);
+//  NVIC_EnableIRQ(DMA1_Channel2_3_IRQn);
 }
 
 
@@ -208,7 +284,7 @@ int main()
 {
 //  CurrentFunc(StartFunction);
 
-  RCC->AHBENR |= RCC_AHBENR_GPIOAEN|RCC_AHBENR_GPIOBEN;
+  RCC->AHBENR |= RCC_AHBENR_GPIOAEN|RCC_AHBENR_GPIOBEN|RCC_AHBENR_DMAEN;
   RCC->APB2ENR = RCC_APB2ENR_SYSCFGEN|RCC_APB2ENR_TIM17EN|RCC_APB2ENR_TIM1EN|RCC_APB2ENR_DBGMCUEN;
   RCC->APB1ENR = RCC_APB1ENR_TIM3EN|RCC_APB1ENR_TIM14EN;
   GPIOA->MODER = TO_GPIO_MODER(A, PINS);
@@ -246,13 +322,13 @@ int main()
   TimersInit();  
   do
   {
-  	if (ResultReady)
+  	if (ResultReady == 1)
     { 
       volatile double Result;
       uint32_t IntRes;
       
       ResultReady = 0;
-      Result = (double)ResultInCount * (double)MAIN_F * (double)1000 / (double)ResultRefCount;
+      Result = (double)ResultInCount * (double)MAIN_F * (double)1000 / (double)ResultRefCount * Prescaler;
       IntRes = Result/1000000;     
 //      if ( IntRes > 0)
       {
@@ -262,7 +338,10 @@ int main()
       IntRes = ((uint32_t)Result)%1000000;     
       OutValue(3, 0, IntRes, 3, 20);
 //      LcdChr(12*X_POSITION + Y_POSITION*3 + MUL2 + 3, "Hz");
-      
+      if (Prescaler == 1)
+        LcdChr(0*X_POSITION + Y_POSITION*7 + 2, "/1");
+      else
+        LcdChr(0*X_POSITION + Y_POSITION*7 + 2, "/8");
     }
 //    __WFI(); // It decreases power but turn off the SWD!!!!
   }
