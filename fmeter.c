@@ -1,6 +1,6 @@
 #include "hw.h"
 #include "n1202.h"
-//#include "event.h"
+#include "event.h"
 
 static uint16_t RefHiCounter; // hi halfword of reference counter T3
 static uint16_t InHiCounter;  // hi halfword of input counter T1
@@ -280,10 +280,49 @@ void OutValue(uint8_t Y, uint8_t X, uint32_t Num, uint8_t DotPosition, uint8_t S
 }
 
 
+void EventIdle()
+{
+	__disable_irq();
+  if (ResultReady == 1 && EventQueue == 0)
+  { 
+    ResultReady = 0;
+    EventQueue = (KEY_F|KEY_PRESSED_VALUE);
+  }
+	__enable_irq();
+}
+
+void StartFunction()
+{
+  if (Event == 0)
+    return;
+  if (Event & EV_KEY_PRESSED)
+  {
+  	if (Event & KEY_F )
+    { 
+      volatile double Result;
+      uint32_t IntRes;
+      
+      ResultReady = 0;
+      Result = (double)ResultInCount * (double)MAIN_F * (double)1000 / (double)ResultRefCount * Prescaler;
+      IntRes = Result/1000000;     
+//      if ( IntRes > 0)
+      {
+        OutValue(0, 0, IntRes, 20, 20);
+        LcdChr(14*X_POSITION + Y_POSITION*0 + MUL2 + 1, "k");
+      }
+      IntRes = ((uint32_t)Result)%1000000;     
+      OutValue(3, 0, IntRes, 3, 20);
+//      LcdChr(12*X_POSITION + Y_POSITION*3 + MUL2 + 3, "Hz");
+      if (Prescaler == 1)
+        LcdChr(0*X_POSITION + Y_POSITION*7 + 2, "/1");
+      else
+        LcdChr(0*X_POSITION + Y_POSITION*7 + 2, "/8");
+    }
+  }
+}
+
 int main()
 {
-//  CurrentFunc(StartFunction);
-
   RCC->AHBENR |= RCC_AHBENR_GPIOAEN|RCC_AHBENR_GPIOBEN|RCC_AHBENR_DMAEN;
   RCC->APB2ENR = RCC_APB2ENR_SYSCFGEN|RCC_APB2ENR_TIM17EN|RCC_APB2ENR_TIM1EN|RCC_APB2ENR_DBGMCUEN;
   RCC->APB1ENR = RCC_APB1ENR_TIM3EN|RCC_APB1ENR_TIM14EN;
@@ -317,33 +356,14 @@ int main()
 
   LcdInit();
   LcdClear();
-//  EventInit();
+  EventInit();
+  CurrentFunc(StartFunction);
 
   TimersInit();  
+
   do
   {
-  	if (ResultReady == 1)
-    { 
-      volatile double Result;
-      uint32_t IntRes;
-      
-      ResultReady = 0;
-      Result = (double)ResultInCount * (double)MAIN_F * (double)1000 / (double)ResultRefCount * Prescaler;
-      IntRes = Result/1000000;     
-//      if ( IntRes > 0)
-      {
-        OutValue(0, 0, IntRes, 20, 20);
-        LcdChr(14*X_POSITION + Y_POSITION*0 + MUL2 + 1, "k");
-      }
-      IntRes = ((uint32_t)Result)%1000000;     
-      OutValue(3, 0, IntRes, 3, 20);
-//      LcdChr(12*X_POSITION + Y_POSITION*3 + MUL2 + 3, "Hz");
-      if (Prescaler == 1)
-        LcdChr(0*X_POSITION + Y_POSITION*7 + 2, "/1");
-      else
-        LcdChr(0*X_POSITION + Y_POSITION*7 + 2, "/8");
-    }
-//    __WFI(); // It decreases power but turn off the SWD!!!!
+  	EventCheck();
   }
   while(1);
 }

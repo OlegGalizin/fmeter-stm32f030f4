@@ -49,6 +49,6 @@ extern void EventIdle(void);
 #define KEY_ENTER 	KEY1
 #define KEY_DOWN 		KEY2
 #define KEY_UP 	    KEY3
-#define KEY_ADC     KEY6 /* Pseudo key */
+#define KEY_F       KEY6 /* Pseudo key */
 
 #endif /* _EVENT_H_ */
