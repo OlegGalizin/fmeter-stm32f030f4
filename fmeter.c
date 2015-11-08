@@ -16,6 +16,8 @@ static uint32_t ResultRefCount; // Measure result
 static uint32_t ResultInCount;  // Measure result
 static uint8_t  ResultReady;    // Measure result ready
 static uint8_t  Prescaler = 1;
+static uint8_t  MenuCounter;
+
 
 #define DMA3_TRANSFER_COUNT 6
 static uint16_t Dma3CatchArray[DMA3_TRANSFER_COUNT];
@@ -291,32 +293,248 @@ void EventIdle()
 	__enable_irq();
 }
 
+void StartFunction(void);
+void MainMenu(void);
+void PwmSetting(void);
+
+__IO uint16_t* WordAddr;
+
+
+void WordToChar(uint16_t Word, char* Out)
+{
+  uint16_t Nibble;
+  char* CurOut = Out + 3;
+  int i;
+  
+  for (i=0; i<4;i++)
+  {
+    Nibble = Word & 0x0F;
+    if (Nibble <= 9)
+      *CurOut = '0' + Nibble;
+    else
+      *CurOut = 'A' + Nibble - 10;
+    Word = (Word >> 4);
+    CurOut--;
+  }
+}
+void ChangeHex()
+{
+  if ( Event == 0 )
+    return;
+
+  if ( Event == EV_FUNC_FIRST )
+  {
+    MenuCounter = 0;
+    LcdClear();
+    goto RedrawMenu;
+  }
+
+  if ( (Event & EV_MASK) == EV_KEY_PRESSED )
+  {
+    switch (Event & KEY_MASK)
+    {
+      case KEY_UP:
+        (*WordAddr)++;
+        goto RedrawMenu;
+      case KEY_DOWN:
+        (*WordAddr)--;
+        goto RedrawMenu;
+      case KEY_ENTER:
+        return; /* NONE for short press */
+    }
+  }
+  else if ((Event & (EV_MASK|KEY_MASK)) == (EV_KEY_LONG|KEY_ENTER) )
+  {
+    CurrentFunc(PwmSetting);
+    return;
+  }
+
+  if ( (Event & EV_MASK) == EV_KEY_PRESSED ||
+       (Event & EV_MASK) == EV_KEY_LONG)
+  {
+    switch (Event & KEY_MASK)
+    {
+      case KEY_DOWN|KEY_ENTER:
+        *WordAddr = (*WordAddr)>>4;
+        goto RedrawMenu;
+      case KEY_UP|KEY_ENTER:
+        *WordAddr = (*WordAddr)<<4;
+        goto RedrawMenu;
+    }
+  }
+  return;
+RedrawMenu:
+  {
+    char HexValue[4];
+
+    WordToChar(*WordAddr, HexValue);
+    LcdChr(X_POSITION*2+Y_POSITION*2+ 4 + MUL3, HexValue);
+  }
+}
+
+void PwmSetting()
+{
+  if ( Event == 0 )
+    return;
+
+  if ( Event == EV_FUNC_FIRST )
+  {
+    MenuCounter = 0;
+    LcdClear();
+    goto RedrawMenu;
+  }
+
+  if ( (Event & EV_MASK) == EV_KEY_PRESSED )
+  {
+    switch (Event & KEY_MASK)
+    {
+      case KEY_UP:
+        if ( MenuCounter == 0 )
+          MenuCounter = 3;
+        else
+          MenuCounter = MenuCounter - 1;
+        break;
+      case KEY_DOWN:
+        if ( MenuCounter == 3 )
+          MenuCounter = 0;
+        else
+          MenuCounter = MenuCounter + 1;
+        break;
+      case KEY_ENTER:
+        switch(MenuCounter)
+        {
+          case 0: //ARR
+            WordAddr = (__IO uint16_t*)&TIM14->ARR;
+            goto ChangeFunc;
+          case 1: //CCR1
+            WordAddr = (__IO uint16_t*)&TIM14->CCR1;
+            goto ChangeFunc;
+          case 2:
+            WordAddr = &TIM14->PSC;
+            goto ChangeFunc;
+          case 3: /* BACK */
+            CurrentFunc(MainMenu);
+            return;
+ChangeFunc:
+            CurrentFunc(ChangeHex);
+            return;
+        }
+    }
+  }
+  else
+    return;
+RedrawMenu:
+  {
+    char HexValue[4];
+
+    LcdChr(X_POSITION*0+Y_POSITION*0+ 4 + MUL2, "ARR");
+    WordToChar(TIM14->ARR, HexValue);
+    LcdChr(X_POSITION*8+Y_POSITION*0+ 4 + MUL2 + (0==MenuCounter)*INVERSE, HexValue);
+  
+    LcdChr(X_POSITION*0+Y_POSITION*2+ 4 + MUL2, "CCR");
+    WordToChar(TIM14->CCR1, HexValue);
+    LcdChr(X_POSITION*8+Y_POSITION*2+ 4 + MUL2 + (1==MenuCounter)*INVERSE, HexValue);
+
+    LcdChr(X_POSITION*0+Y_POSITION*4+ 4 + MUL2, "PSC");
+    WordToChar(TIM14->PSC, HexValue);
+    LcdChr(X_POSITION*8+Y_POSITION*4+ 4 + MUL2 + (2==MenuCounter)*INVERSE, HexValue);
+    
+    LcdChr(X_POSITION*0+Y_POSITION*6+ 8 + MUL2 + (3==MenuCounter)*INVERSE, "Back");
+  }
+}
+
+void MainMenu()
+{
+  if ( Event == 0 )
+    return;
+
+  if ( Event == EV_FUNC_FIRST )
+  {
+    MenuCounter = 0;
+    LcdClear();
+    goto RedrawMenu;
+  }
+
+  if ( (Event & EV_MASK) == EV_KEY_PRESSED )
+  {
+    switch (Event & KEY_MASK)
+    {
+      case KEY_UP:
+        if ( MenuCounter == 0 )
+          MenuCounter = 3;
+        else
+          MenuCounter = MenuCounter - 1;
+        break;
+      case KEY_DOWN:
+        if ( MenuCounter == 3 )
+          MenuCounter = 0;
+        else
+          MenuCounter = MenuCounter + 1;
+        break;
+      case KEY_ENTER:
+        switch(MenuCounter)
+        {
+          case 0: //
+          case 1:
+          case 2:
+            break;
+          case 3:
+            CurrentFunc(PwmSetting);
+            return;
+        }
+    }
+  }
+  else
+    return;
+RedrawMenu:
+  LcdChr(X_POSITION*0+Y_POSITION*0+ 8 + MUL2 + (0==MenuCounter)*INVERSE, "Menu1");
+  LcdChr(X_POSITION*0+Y_POSITION*2+ 8 + MUL2 + (1==MenuCounter)*INVERSE, "Menu2");
+  LcdChr(X_POSITION*0+Y_POSITION*4+ 8 + MUL2 + (2==MenuCounter)*INVERSE, "Menu4");
+  LcdChr(X_POSITION*0+Y_POSITION*6+ 8 + MUL2 + (3==MenuCounter)*INVERSE, "PWM");
+}
+
 void StartFunction()
 {
   if (Event == 0)
     return;
+
+  if ( Event == EV_FUNC_FIRST )
+  {
+    MenuCounter = 0;
+    LcdClear();
+    return;
+  }
+
   if (Event & EV_KEY_PRESSED)
   {
-  	if (Event & KEY_F )
-    { 
-      volatile double Result;
-      uint32_t IntRes;
+    switch(Event & KEY_MASK)
+    {
+      case  KEY_F:
+      { 
+        volatile double Result;
+        uint32_t IntRes;
       
-      ResultReady = 0;
-      Result = (double)ResultInCount * (double)MAIN_F * (double)1000 / (double)ResultRefCount * Prescaler;
-      IntRes = Result/1000000;     
+        ResultReady = 0;
+        Result = (double)ResultInCount * (double)MAIN_F * (double)1000 / (double)ResultRefCount * Prescaler;
+        IntRes = Result/1000000;     
 //      if ( IntRes > 0)
-      {
-        OutValue(0, 0, IntRes, 20, 20);
-        LcdChr(14*X_POSITION + Y_POSITION*0 + MUL2 + 1, "k");
-      }
-      IntRes = ((uint32_t)Result)%1000000;     
-      OutValue(3, 0, IntRes, 3, 20);
+        {
+          OutValue(0, 0, IntRes, 20, 20);
+          LcdChr(14*X_POSITION + Y_POSITION*0 + MUL2 + 1, "k");
+        }
+        IntRes = ((uint32_t)Result)%1000000;     
+        OutValue(3, 0, IntRes, 3, 20);
 //      LcdChr(12*X_POSITION + Y_POSITION*3 + MUL2 + 3, "Hz");
-      if (Prescaler == 1)
-        LcdChr(0*X_POSITION + Y_POSITION*7 + 2, "/1");
-      else
-        LcdChr(0*X_POSITION + Y_POSITION*7 + 2, "/8");
+        if (Prescaler == 1)
+          LcdChr(0*X_POSITION + Y_POSITION*7 + 2, "/1");
+        else
+          LcdChr(0*X_POSITION + Y_POSITION*7 + 2, "/8");
+        break;
+      }
+      case KEY_ENTER:
+      default:
+        CurrentFunc(MainMenu);
+        return;
     }
   }
 }

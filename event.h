@@ -4,13 +4,13 @@
 #include "hw.h"
 
 #define EV_KEY_TOUCH    0x0000
-#define EV_KEY_PRESSED  0x0020 
-#define EV_KEY_LONG     0x0030
-#define EV_KEY_REPEATE  0x0040
-#define EV_KEY_REALIZED 0x0050
-#define EV_KEY_DOUBLE   0x0060
-#define EV_FUNC_FIRST   0x0070
-#define EV_MASK         0x0070
+#define EV_KEY_PRESSED  0x0200 
+#define EV_KEY_LONG     0x0300
+#define EV_KEY_REPEATE  0x0400
+#define EV_KEY_REALIZED 0x0500
+#define EV_KEY_DOUBLE   0x0600
+#define EV_FUNC_FIRST   0x0700
+#define EV_MASK         0x0700
 
 extern uint16_t Event;  /* 0xKKKKAAAK */
 /* AAA - it is event key. Event can be defined by & operation with EV_MASK*/
